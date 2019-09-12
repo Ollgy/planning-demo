@@ -12,10 +12,11 @@ global.NODE_PATH = __dirname;
 
 require('./db'); 
 
-// const pos = require('./positions');
-// pos.addPosToBD(pos.posList);
-// const head = require('./head');
-// head.addHeadToBD(head.user);
+const pos = require('./positions');
+pos.addPosToBD(pos.posList);
+
+const head = require('./head');
+head.addHeadToBD(head.user);
 
 const app = express();
 

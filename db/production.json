@@ -1,10 +1,10 @@
 {
   "db": {
-    "host": "",
+    "host": "usersbase-ozvn6.mongodb.net",
     "name": "userdb",
     "user": "Ollgy",
     "password": "mongobase",
     "protocol": "mongodb+srv",
-    "reqBody": ""
+    "reqBody": "test?retryWrites=true&w=majority"
   }
 }

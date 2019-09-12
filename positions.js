@@ -1,6 +1,12 @@
 const Position = require('./models/position');
 
-module.exports.addPosToBD = positions => {
+module.exports.addPosToBD = async positions => {
+  const posList = await Position.find();
+
+  if (posList.length) {
+    return;
+  }
+
   positions.forEach(position => {
     const { name, permission, staff } = position;
   

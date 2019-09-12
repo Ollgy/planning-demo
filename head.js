@@ -1,7 +1,15 @@
 const User = require('./models/user');
+const Position = require('./models/position');
 
-module.exports.addHeadToBD = user => {
-  const { email, firstName, lastName, middleName, birthDate, position, phone, messengers } = user;
+module.exports.addHeadToBD = async user => {
+  const userList = await User.find();
+  
+  if (userList.length) {
+    return;
+  }
+
+  const { email, firstName, lastName, middleName, birthDate, position: posName, phone, messengers } = user;
+  const pos = await Position.findOne({ name: posName})
   const password = '123';
 
   const newUser = new User({ 
@@ -13,7 +21,11 @@ module.exports.addHeadToBD = user => {
     middleName, 
     image: '',
     birthDate,
-    position,
+    position: {
+      id: pos._id,
+      name: pos.name,
+      permission: pos.permission
+    },
     phone,
     messengers,
     access_token: 'token' 
@@ -21,7 +33,7 @@ module.exports.addHeadToBD = user => {
   
   newUser.setPassword(password); 
 
-  User.save()
+  newUser.save()
     .then(user => {
       const userId = user.get('_id');
       

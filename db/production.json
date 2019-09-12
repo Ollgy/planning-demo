@@ -5,6 +5,6 @@
     "user": "Ollgy",
     "password": "mongobase",
     "protocol": "mongodb+srv",
-    "reqBody": "test?retryWrites=true&w=majority"
+    "reqBody": "?retryWrites=true&w=majority"
   }
 }

@@ -9,5 +9,5 @@ deploy:
   strategy: git
 
 app: 
-  master: planning
+  master: planning-demo
   

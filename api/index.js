@@ -45,20 +45,20 @@ module.exports.saveNewUser = function(req, res) {
     .then(user => {
       if (user) {
         console.log('Пользователь с таким логином уже существует');
-        return res.json({ msg: 'Пользователь с таким логином уже существует', user: null });
+        return res.json(null);
       } else {
         newUser.save()
           .then(user => {
             const userId = user.get('_id');
             
-            User.findByIdAndUpdate(userId, { $set: { id: userId } }, (err, user) => {
+            User.findByIdAndUpdate(userId, { $set: { id: userId } }, { new: true }, (err, user) => {
               if (err) {
                 console.log(err);
                 next(err);
               }
 
               console.log("Был сохранен новый пользователь", user);
-              res.json({ msg: 'Успешно!', user });
+              res.json(user);
             });
             
             Position.findById(req.user.position.id, (err, position) => {
@@ -82,7 +82,7 @@ module.exports.saveNewUser = function(req, res) {
       })
     .catch(err => {
       console.log(err);
-      res.json({ msg: err, user: null });
+      res.json(err);
     });
 };
 
@@ -93,7 +93,7 @@ module.exports.logIn = (req, res, next) => {
     }
     if (!user) {
       console.log("Пользователь не зарегистрирован");
-      return res.json(user);
+      return res.json(null);
     }
     req.logIn(user, function(err) {
       if (err) {
@@ -184,9 +184,9 @@ module.exports.saveUserImage = function(req, res, next) {
           .write(fileName); 
 
         User.findByIdAndUpdate(id, {$set: { image: dir }}, { new: true })
-          .then((obj) => {
-            console.log("Было обновлено изображение", dir);
-            res.json({ path: dir });
+          .then(user => {
+            console.log(`Было обновлено изображение ${dir} пользователя ${user}`);
+            res.json(user);
           })
           .catch(err => {
             console.log(err);
@@ -265,7 +265,7 @@ module.exports.getUsers = function(req, res) {
     .then(position => {
       User
         .find({ id: { $in: position.staff} })
-        .then(users => res.json(users))
+        .then(users => res.json(users.sort((a, b) => a.lastName > b.lastName)))
         .catch(err => {
           console.log(err);
         });
@@ -276,14 +276,21 @@ module.exports.getUsers = function(req, res) {
 }
 
 module.exports.getFilterUsers = function(req, res) {
-  const { str } = req.params;
+  const str = req.params.str.toLowerCase();
 
   Position.findById(req.user.position.id)
     .then(position => {
     
       User.find({ id: { $in: position.staff} })
-        .then(users => res.json(users.filter(user => 
-          user.firstName.includes(str) || user.lastName.includes(str) || user.middleName.includes(str))))
+        .then(users => res.json(
+          users
+            .filter(user => 
+              user.firstName.toLowerCase().includes(str) || 
+              user.lastName.toLowerCase().includes(str) || 
+              user.middleName.toLowerCase().includes(str))
+            )
+            .sort(users.sort((a, b) => a.lastName > b.lastName))
+        )
         .catch(err => {
           console.log(err);
         });
@@ -295,7 +302,7 @@ module.exports.getFilterUsers = function(req, res) {
 
 module.exports.getUser = function(req, res) {
   const { id } = req.params;
-
+  
   User.findById(id)
     .then(user => res.json(user))
     .catch(err => {
@@ -358,7 +365,7 @@ module.exports.updateTask = function(req, res) {
       console.log("Была обновлена задача", task);
 
       Task.find({ executorId: task.executorId }, (err, tasks) => 
-        res.json({ msg: 'Задача обновлена', tasks }));
+        res.json(tasks));
     })
     .catch(err => {
       console.log(err);
@@ -370,7 +377,7 @@ module.exports.deleteTask = function(req, res) {
 
   Task.findByIdAndRemove(id)
     .then(task => {
-      Task.find({ executorId: task.executorId }, (err, obj) => res.json(obj));
+      Task.find({ executorId: task.executorId }, (err, tasks) => res.json(tasks));
     })
     .catch(err => {
       console.log(err);
@@ -400,7 +407,7 @@ module.exports.saveNewNote = function(req, res) {
         }
 
         console.log("Была добавлена заметка", note);
-        Note.find({ userId: note.userId }, (err, notes) => res.json({ msg: 'Заметка добавлена', notes }));
+        Note.find({ userId: note.userId }, (err, notes) => res.json(notes));
       });
     })
     .catch(err => {
@@ -437,4 +444,76 @@ module.exports.getPositions = function(req, res) {
     .catch(err => {
       console.log(err);
     });
+}
+
+// CleanBase
+const ipos = require('../baseinit/positions');
+const istaff = require('../baseinit/staff');
+const inote = require('../baseinit/notes');
+const itask = require('../baseinit/tasks');
+const fsex = require('fs-extra');
+
+module.exports.cleanBase = async function(req, res) {
+  try {
+    await User.collection.remove();
+    await Position.collection.remove();
+    await Note.collection.remove();
+    await Task.collection.remove();
+  
+    const uploadDist = path.join('./build', 'upload');
+    const uploadSrc = path.join('./baseinit', 'upload');
+    
+    if (!fs.existsSync(uploadDist)) {
+      fs.mkdirSync(uploadDist);
+    }
+    
+    await copy(
+      path.join(process.cwd(), uploadSrc),
+      path.join(process.cwd(), uploadDist)
+    );
+  
+    await generate(ipos.posList, ipos.addPosToBD);
+    await generate(istaff.heads, istaff.addUserToBD);
+    await generate(istaff.users, istaff.addUserToBD);
+    await generate(inote.noteList, inote.addNoteToBD);
+    await generate(itask.taskList, itask.addTaskToBD);
+  
+    res.json({ msg: 'Base is updated' });
+  } catch(err) {
+    console.log(err);
+  }
+}
+
+async function* generateSequence(arr, asyncFunc) {
+    for (let elem of arr) {
+      await asyncFunc(elem);
+  
+      yield;
+    }
+  }
+
+async function generate() {
+  let generator = generateSequence(...arguments);
+  for await (let value of generator) {
+    console.log('iteration'); 
+  }
+}
+
+async function copy(pathToSource, pathToDist) {
+  return new Promise((resolve, reject) => {
+    fsex.remove(pathToDist, err => {
+      if (err) {
+        console.log(err);
+        return reject(err);
+      }
+      fsex.copy(pathToSource, pathToDist, err => {
+        if (err) {
+          console.log(err);
+          return reject(err);
+        }
+        console.log('Files was copied');
+        return resolve();
+      });
+    });
+  });
 }

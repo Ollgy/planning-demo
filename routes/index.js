@@ -39,8 +39,8 @@ router.post('/api/saveNewNote', checkAccess, api.saveNewNote);
 router.delete('/api/deleteNote/:id', checkAccess, api.deleteNote);
 
 router.get('/api/getPositions', checkAccess, api.getPositions);
+router.get('/api/cleanBase', api.cleanBase);
   
-
 router.get('/*', (req, res, next) => {
   res.sendFile(path.join(NODE_PATH + '/build/index.html'));
 });

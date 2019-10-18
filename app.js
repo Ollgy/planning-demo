@@ -1,4 +1,4 @@
-require('dotenv').config();
+//require('dotenv').config();
 
 const express = require('express');
 const http = require('http');
@@ -11,12 +11,6 @@ const passport = require('passport');
 global.NODE_PATH = __dirname;
 
 require('./db'); 
-
-const pos = require('./positions');
-const head = require('./head');
-
-pos.addPosToBD(pos.posList);
-head.addHeadToBD(head.user);
 
 const app = express();
 
